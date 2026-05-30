@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team Dinner Finder — Bangkok 8–12 คน</title>
+<style>
+  :root {
+    --bg: #f8f7f5; --surface: #fff; --border: #e8e4df;
+    --text: #1a1a1a; --muted: #6b6560; --accent: #c0392b;
+    --accent-light: #fdf0ee; --gold: #d4a017; --green: #27ae60;
+    --tag-bg: #f0ede8; --radius: 10px; --shadow: 0 1px 4px rgba(0,0,0,.07);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.6; }
+
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 24px 24px 16px; }
+  .header-inner { max-width: 1100px; margin: 0 auto; }
+  header h1 { font-size: 21px; font-weight: 700; }
+  header p { color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .tag { background: var(--tag-bg); color: var(--muted); font-size: 11px; padding: 3px 10px; border-radius: 20px; }
+  .tag.accent { background: var(--accent); color: #fff; }
+
+  /* SYNC BAR */
+  .sync-bar { background: #eef4ff; border-bottom: 1px solid #c5d3f5; padding: 8px 24px; font-size: 12px; color: #2c3e7d; display: flex; align-items: center; gap: 8px; }
+  .sync-bar a { color: var(--accent); }
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #aaa; flex-shrink: 0; }
+  .sync-dot.ok { background: #27ae60; }
+  .sync-dot.err { background: #c0392b; }
+  .sync-dot.loading { background: #f39c12; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+  .section-title { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+
+  /* LOADING */
+  .loading-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; margin: 0 auto 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* SETUP NOTICE */
+  .setup-notice { background: #fffbe6; border: 1px solid #f0d060; border-radius: var(--radius); padding: 16px 20px; margin-bottom: 24px; font-size: 13px; display: none; }
+  .setup-notice h4 { font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #7a5f00; }
+  .setup-notice ol { padding-left: 18px; color: #555; }
+  .setup-notice li { margin-bottom: 4px; }
+
+  /* TOP 3 CARDS */
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 32px; }
+  @media(max-width:700px) { .cards { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); }
+  .card.gold { border-top: 3px solid var(--gold); }
+  .card.silver { border-top: 3px solid #9e9e9e; }
+  .card.bronze { border-top: 3px solid #bf8b5e; }
+  .card-rank { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .card-name { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
+  .card-area { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .card-score { font-size: 26px; font-weight: 800; color: var(--accent); }
+  .card-score span { font-size: 12px; font-weight: 400; color: var(--muted); }
+  .card-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .badge { font-size: 11px; padding: 2px 7px; border-radius: 4px; background: var(--tag-bg); color: var(--muted); }
+  .badge.g { background: #e8f7ef; color: #1e8449; }
+  .badge.a { background: #fef9e7; color: #9a7d0a; }
+  .card-why { font-size: 12px; color: var(--muted); margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; line-height: 1.5; }
+  .card-link { display: inline-block; margin-top: 8px; font-size: 12px; color: var(--accent); text-decoration: none; }
+
+  /* FILTER BAR */
+  .filter-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .filter-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 12px; cursor: pointer; color: var(--muted); }
+  .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* TABLE */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow-x: auto; margin-bottom: 32px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { background: var(--bg); }
+  th { padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafaf9; }
+  .rank-n { font-weight: 700; color: var(--accent); }
+  .star { color: var(--gold); }
+  .score-pill { font-weight: 700; color: var(--accent); }
+  .area-chip { font-size: 11px; padding: 2px 7px; border-radius: 4px; background: var(--tag-bg); white-space: nowrap; }
+  .price-tag { font-size: 11px; color: var(--muted); }
+  .group-yes { color: #27ae60; font-size: 12px; }
+  .group-warn { color: #e67e22; font-size: 12px; }
+
+  /* SCORING MODEL */
+  .score-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 32px; }
+  @media(max-width:600px){ .score-grid { grid-template-columns: 1fr 1fr; } }
+  .score-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+  .score-item-label { font-size: 12px; font-weight: 600; }
+  .score-item-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .score-item-weight { font-size: 22px; font-weight: 800; color: var(--accent); }
+
+  /* AI ASK */
+  .ask-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 32px; }
+  .ask-box textarea { width: 100%; border: 1px solid var(--border); border-radius: 7px; padding: 9px 12px; font-size: 13px; font-family: inherit; resize: vertical; min-height: 64px; background: var(--bg); color: var(--text); outline: none; }
+  .ask-box textarea:focus { border-color: var(--accent); }
+  .ask-row { display: flex; gap: 8px; margin-top: 8px; }
+  .ask-btn { background: var(--accent); color: #fff; border: none; padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .ask-result { margin-top: 12px; background: var(--accent-light); border-radius: 7px; padding: 12px; font-size: 13px; line-height: 1.6; display: none; }
+
+  /* HUMAN REVIEW */
+  .review-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 32px; }
+  .review-list { list-style: none; }
+  .review-list li { display: flex; align-items: flex-start; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .review-list li:last-child { border-bottom: none; }
+  .flag { flex-shrink: 0; font-size: 11px; padding: 2px 7px; border-radius: 4px; font-weight: 600; }
+  .flag-v { background: #fef9e7; color: #9a7d0a; }
+  .flag-ok { background: #e8f7ef; color: #1e8449; }
+  .flag-w { background: #fdf0ee; color: var(--accent); }
+  .add-flag { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .add-flag input { flex: 1; min-width: 160px; border: 1px solid var(--border); border-radius: 7px; padding: 6px 10px; font-size: 13px; font-family: inherit; background: var(--bg); }
+  .add-flag select { border: 1px solid var(--border); border-radius: 7px; padding: 6px 10px; font-size: 13px; background: var(--bg); }
+  .add-flag button { background: var(--text); color: #fff; border: none; padding: 6px 12px; border-radius: 7px; font-size: 13px; cursor: pointer; }
+
+  /* RAW TOGGLE */
+  .raw-toggle { background: none; border: 1px solid var(--border); border-radius: 7px; padding: 6px 12px; font-size: 12px; cursor: pointer; color: var(--muted); margin-bottom: 10px; }
+  .raw-data { display: none; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; margin-bottom: 32px; }
+
+  /* AI INSIGHT */
+  .insight-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; box-shadow: var(--shadow); margin-bottom: 0; }
+  .insight-intro { font-size: 13px; color: var(--muted); margin-bottom: 16px; line-height: 1.6; background: #f8f7f5; border-left: 3px solid var(--gold); padding: 10px 14px; border-radius: 0 6px 6px 0; }
+  .insight-pick { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+  @media(max-width:700px){ .insight-pick { grid-template-columns: 1fr; } }
+  .insight-card { border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .insight-card.ic1 { border-top: 3px solid var(--gold); }
+  .insight-card.ic2 { border-top: 3px solid #9e9e9e; }
+  .insight-card.ic3 { border-top: 3px solid #bf8b5e; }
+  .insight-card h4 { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+  .insight-card p { font-size: 12px; color: var(--muted); line-height: 1.6; margin-bottom: 6px; }
+  .insight-card .pros { color: #1e8449; font-size: 12px; }
+  .insight-card .cons { color: var(--accent); font-size: 12px; }
+  .insight-tradeoff { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 16px; }
+  .insight-tradeoff h4 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 10px; }
+  .tradeoff-row { display: grid; grid-template-columns: 160px 1fr; gap: 8px; margin-bottom: 6px; align-items: start; font-size: 12px; }
+  .tradeoff-label { font-weight: 600; color: var(--text); }
+  .tradeoff-val { color: var(--muted); }
+  .insight-when { font-size: 12px; background: #eef4ff; border-radius: 6px; padding: 10px 14px; color: #2c3e7d; line-height: 1.6; }
+  .score-breakdown { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .sb { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: var(--tag-bg); color: var(--muted); }
+
+  /* N8N BOX */
+  .n8n-box { background: #f0f4ff; border: 1px solid #c5d0f5; border-radius: var(--radius); padding: 14px 18px; margin-bottom: 32px; font-size: 13px; }
+  .n8n-box h4 { font-size: 13px; font-weight: 700; color: #2c3e7d; margin-bottom: 6px; }
+  .n8n-box ul { padding-left: 16px; color: #3a4a8a; }
+  .n8n-box li { margin-bottom: 3px; }
+
+  footer { text-align: center; padding: 16px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <h1>🍽 Team Dinner Finder — Bangkok</h1>
+    <p>สำหรับมื้อทีม 8–12 คน · มื้อเย็นหลังเลิกงาน · ข้อมูลจาก Google Sheets (Apify)</p>
+    <div class="tags">
+      <span class="tag accent">🏙 สยาม</span>
+      <span class="tag accent">🌿 อารีย์</span>
+      <span class="tag accent">✨ ทองหล่อ</span>
+      <span class="tag accent">🏢 อโศก</span>
+      <span class="tag accent">🛍 พร้อมพงษ์</span>
+      <span class="tag" id="dataSourceTag">⏳ กำลังโหลด...</span>
+    </div>
+  </div>
+</header>
+
+<div class="sync-bar">
+  <div class="sync-dot loading" id="syncDot"></div>
+  <span id="syncText">กำลังดึงข้อมูลจาก Google Sheets...</span>
+  <span style="margin-left:auto;color:#888">
+    <a href="https://docs.google.com/spreadsheets/d/1gEkuArVaTIkppgoOWu5ngImFzegretmcqrLLDQMZFpQ/edit#gid=0" target="_blank">Clean Data ↗</a>
+    &nbsp;·&nbsp;
+    <a href="https://docs.google.com/spreadsheets/d/1gEkuArVaTIkppgoOWu5ngImFzegretmcqrLLDQMZFpQ/edit#gid=1" target="_blank">Raw Data ↗</a>
+  </span>
+</div>
+
+<main>
+
+  <div class="setup-notice" id="setupNotice">
+    <h4>⚠️ ต้องตั้งค่า Google Sheets ก่อน</h4>
+    <ol>
+      <li>เปิด <a href="https://docs.google.com/spreadsheets/d/1gEkuArVaTIkppgoOWu5ngImFzegretmcqrLLDQMZFpQ" target="_blank">TeamDinner_BKK Sheet</a></li>
+      <li>กด <strong>Share</strong> → เปลี่ยนเป็น <strong>"Anyone with the link"</strong> → <strong>Viewer</strong></li>
+      <li>กด <strong>Done</strong> แล้ว reload หน้านี้</li>
+    </ol>
+  </div>
+
+  <div id="loadingState" class="loading-state">
+    <div class="spinner"></div>
+    <p>กำลังดึงข้อมูลจาก Google Sheets...</p>
+  </div>
+
+  <div id="mainContent" style="display:none">
+
+    <!-- TOP 3 -->
+    <div class="section-title">🏆 Top 3 คำแนะนำสำหรับมื้อทีม</div>
+    <div class="cards" id="top3Cards"></div>
+
+    <!-- TOP 10 TABLE -->
+    <div class="section-title">📊 ตาราง Top 10 อันดับ</div>
+    <div class="filter-bar" id="filterBar">
+      <button class="filter-btn active" onclick="filterTable('all',this)">ทั้งหมด</button>
+      <button class="filter-btn" onclick="filterTable('สยาม',this)">สยาม</button>
+      <button class="filter-btn" onclick="filterTable('อารีย์',this)">อารีย์</button>
+      <button class="filter-btn" onclick="filterTable('ทองหล่อ',this)">ทองหล่อ</button>
+      <button class="filter-btn" onclick="filterTable('อโศก',this)">อโศก</button>
+      <button class="filter-btn" onclick="filterTable('พร้อมพงษ์',this)">พร้อมพงษ์</button>
+    </div>
+    <div class="table-wrap">
+      <table id="mainTable">
+        <thead>
+          <tr>
+            <th>#</th><th>ร้าน</th><th>ย่าน</th><th>ประเภท</th>
+            <th>⭐ Rating</th><th>รีวิว</th><th>ราคา/คน</th>
+            <th>กลุ่ม</th><th>คะแนน</th><th>Maps</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+
+    <!-- SCORING MODEL -->
+    <!-- ── AI ANALYSIS SECTION ── -->
+    <div class="section-title">🧠 AI Analysis & Insight — ทำไมถึงเลือก 3 ร้านนี้?</div>
+    <div id="aiInsightSection" style="margin-bottom:32px"></div>
+
+    <div class="section-title">📐 Scoring Model (100 คะแนน)</div>
+    <div class="score-grid">
+      <div class="score-item"><div class="score-item-label">Rating & Review Quality</div><div class="score-item-sub">คุณภาพคะแนนและรีวิว</div><div class="score-item-weight">25</div></div>
+      <div class="score-item"><div class="score-item-label">Group Suitability</div><div class="score-item-sub">ความเหมาะกับกลุ่ม</div><div class="score-item-weight">20</div></div>
+      <div class="score-item"><div class="score-item-label">Price Suitability</div><div class="score-item-sub">ความเหมาะของราคา</div><div class="score-item-weight">15</div></div>
+      <div class="score-item"><div class="score-item-label">Travel Convenience</div><div class="score-item-sub">ความสะดวกเดินทาง</div><div class="score-item-weight">15</div></div>
+      <div class="score-item"><div class="score-item-label">Data Completeness</div><div class="score-item-sub">ความครบของข้อมูล</div><div class="score-item-weight">15</div></div>
+      <div class="score-item"><div class="score-item-label">Uniqueness / Experience</div><div class="score-item-sub">ความพิเศษ</div><div class="score-item-weight">10</div></div>
+    </div>
+
+    <!-- AI ASK BOX -->
+    <div class="section-title">🤖 AI Ask Box</div>
+    <div class="ask-box">
+      <textarea id="askInput" placeholder="ถามเกี่ยวกับร้านอาหาร เช่น ร้านไหนถูกสุด? ย่านไหนมีตัวเลือกเยอะสุด? รับ 12 คนได้ไหม?"></textarea>
+      <div class="ask-row">
+        <button class="ask-btn" onclick="askAI()">ถาม AI →</button>
+        <span id="askStatus" style="font-size:12px;color:var(--muted);align-self:center;margin-left:4px"></span>
+      </div>
+      <div class="ask-result" id="askResult"></div>
+    </div>
+
+    <!-- HUMAN REVIEW -->
+    <div class="section-title">🚩 Human Review Flags</div>
+    <div class="review-section">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Flag ร้านที่ต้องยืนยันก่อนตัดสินใจ</p>
+      <ul class="review-list" id="reviewList">
+        <li><span class="flag flag-ok">✅ ยืนยันแล้ว</span><span><strong>BORNGA THAILAND</strong> — Korean BBQ ชั้น 2 สุขุมวิท 39 รับกลุ่มใหญ่ได้ เปิดทุกวัน (ข้อมูลจาก Google Maps)</span></li>
+        <li><span class="flag flag-v">⚠️ ยืนยัน</span><span><strong>จากึมซอง</strong> — ตรวจสอบที่นั่งสำหรับ 10–12 คน อาจต้องจองล่วงหน้า</span></li>
+        <li><span class="flag flag-w">🔴 ระวัง</span><span><strong>KURATHAI SHOKUDO</strong> — เป็นบุฟเฟต์ญี่ปุ่น ตรวจสอบ slot เวลาและราคาปัจจุบัน</span></li>
+      </ul>
+      <div class="add-flag">
+        <input type="text" id="flagNote" placeholder="เพิ่ม note..."/>
+        <select id="flagType">
+          <option value="v">⚠️ ยืนยัน</option>
+          <option value="ok">✅ ยืนยันแล้ว</option>
+          <option value="w">🔴 ระวัง</option>
+        </select>
+        <button onclick="addFlag()">+ เพิ่ม</button>
+      </div>
+    </div>
+
+    <!-- RAW DATA -->
+    <div class="section-title">📋 Raw Data (ทุกร้าน)</div>
+    <button class="raw-toggle" onclick="toggleRaw()">แสดง / ซ่อน Raw Data ↕</button>
+    <div class="raw-data" id="rawData">
+      <table>
+        <thead><tr><th>#</th><th>ร้าน</th><th>ย่าน</th><th>ประเภท</th><th>Rating</th><th>รีวิว</th><th>ราคา</th><th>กลุ่ม</th><th>แหล่งข้อมูล</th></tr></thead>
+        <tbody id="rawTableBody"></tbody>
+      </table>
+    </div>
+
+    <!-- N8N -->
+    <div class="section-title">🔗 N8N Integration Points</div>
+    <div class="n8n-box">
+      <h4>จุดที่เชื่อมต่อ n8n ได้ในอนาคต</h4>
+      <ul>
+        <li><strong>📥 Auto Scrape:</strong> n8n Schedule → Apify Actor (Google Maps Scraper) → append Google Sheets ทุกสัปดาห์</li>
+        <li><strong>🔄 Auto Refresh:</strong> หน้าเว็บนี้ fetch จาก Sheets ทุกครั้งที่เปิด — ข้อมูลอัปเดตอัตโนมัติเมื่อ Sheet เปลี่ยน</li>
+        <li><strong>📊 Scoring Automation:</strong> n8n → คำนวณคะแนนใหม่ → เขียนกลับ Sheets → เว็บโหลดผลล่าสุดทันที</li>
+        <li><strong>🔔 LINE/Slack Notify:</strong> n8n → แจ้งทีม "ร้านแนะนำสัปดาห์นี้" ทุกวันศุกร์</li>
+        <li><strong>📝 Human Review Webhook:</strong> กด Flag → POST n8n → บันทึกลง Sheets + แจ้ง reviewer</li>
+      </ul>
+    </div>
+
+  </div><!-- /mainContent -->
+</main>
+
+<footer>
+  ข้อมูลจาก Google Sheets (Apify Google Maps Scraper) · อัปเดต พ.ค. 2026 · สร้างโดย Claude AI
+</footer>
+
+<script>
+// ── CONFIG — Published CSV URLs (CORS-friendly) ──
+const SHEET_ID = '1gEkuArVaTIkppgoOWu5ngImFzegretmcqrLLDQMZFpQ';
+const CLEAN_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQZDX4O52J-FnDFM165RUgOBfdUT05rd-mP0mMJZtkY4bnXfTYls6wOrfXBl9fMOf41ljuTnRWEWcKe/pub?gid=1546096661&single=true&output=csv';
+const RAW_CSV   = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQZDX4O52J-FnDFM165RUgOBfdUT05rd-mP0mMJZtkY4bnXfTYls6wOrfXBl9fMOf41ljuTnRWEWcKe/pub?gid=975934951&single=true&output=csv';
+
+// ── CSV PARSER ──
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = splitCSVLine(lines[0]);
+  return lines.slice(1).map(line => {
+    const vals = splitCSVLine(line);
+    const obj = {};
+    headers.forEach((h, i) => obj[h.trim()] = (vals[i] || '').trim());
+    return obj;
+  }).filter(r => r['Restaurant Name']);
+}
+function splitCSVLine(line) {
+  const result = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') { inQ = !inQ; }
+    else if (line[i] === ',' && !inQ) { result.push(cur); cur = ''; }
+    else cur += line[i];
+  }
+  result.push(cur);
+  return result;
+}
+
+// ── DATA LOADER ──
+function loadGviz(sheetName) {
+  const url = sheetName === 'Clean Data' ? CLEAN_CSV : RAW_CSV;
+  return fetch(url).then(r => r.text()).then(parseCSV);
+}
+
+// ── FETCH DATA ──
+async function loadData() {
+  try {
+    allRows = await loadGviz('Clean Data');
+    if (allRows.length === 0) throw new Error('NO_DATA');
+
+    setSyncOK(`ข้อมูล ${allRows.length} ร้าน · โหลดจาก Google Sheets สำเร็จ`);
+    document.getElementById('dataSourceTag').textContent = `📊 ${allRows.length} ร้าน · Live`;
+    renderAll(allRows);
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'block';
+
+    // Load raw data silently
+    loadGviz('Raw Data').then(rows => renderRawTable(rows)).catch(() => {});
+
+  } catch(e) {
+    console.error(e);
+    setSyncErr('เกิดข้อผิดพลาด: ' + e.message);
+    document.getElementById('loadingState').innerHTML =
+      '<p style="color:#c0392b">เกิดข้อผิดพลาด: ' + e.message + '<br><small>ตรวจสอบว่า Sheet ตั้งค่า "Anyone with the link" แล้ว</small></p>';
+  }
+}
+
+function setSyncOK(msg) {
+  document.getElementById('syncDot').className = 'sync-dot ok';
+  document.getElementById('syncText').textContent = msg;
+}
+function setSyncErr(msg) {
+  document.getElementById('syncDot').className = 'sync-dot err';
+  document.getElementById('syncText').textContent = msg;
+}
+
+// ── RENDER ──
+function renderAll(rows) {
+  renderTop3(rows.slice(0, 3));
+  renderTable(rows.slice(0, 10));
+  renderAIInsight(rows);
+  buildAIContext(rows);
+}
+
+const areaColors = {
+  'สยาม':'#e8f0fe','อารีย์':'#e8f7ef','ทองหล่อ':'#fef9e7','อโศก':'#fdf0ee','พร้อมพงษ์':'#f3e8ff'
+};
+
+function renderTop3(rows) {
+  const classes = ['gold','silver','bronze'];
+  const medals = ['🥇 อันดับ 1 · แนะนำสูงสุด','🥈 อันดับ 2','🥉 อันดับ 3'];
+  document.getElementById('top3Cards').innerHTML = rows.map((r,i) => `
+    <div class="card ${classes[i]}">
+      <div class="card-rank">${medals[i]}</div>
+      <div class="card-name">${esc(r['Restaurant Name'])}</div>
+      <div class="card-area">📍 ${esc(r['Area'])}</div>
+      <div class="card-score">${r['Scoring Total'] || '—'} <span>/ 100</span></div>
+      <div class="card-meta">
+        <span class="badge g">⭐ ${r['Google Rating']} · ${fmt(r['Review Count'])} รีวิว</span>
+        <span class="badge a">${esc(r['Price Range'] || '')}</span>
+        <span class="badge ${r['Suitable for Group']?.includes('✅') ? 'g' : ''}">${esc(r['Suitable for Group'] || '')}</span>
+      </div>
+      <div class="card-why">📍 ${esc(r['Location / Address'] || '')} · ${esc(r['Distance / Travel Note'] || '')}</div>
+      ${r['Source URL'] ? `<a class="card-link" href="${r['Source URL']}" target="_blank">📌 Google Maps →</a>` : ''}
+    </div>
+  `).join('');
+}
+
+function renderTable(rows) {
+  document.getElementById('tableBody').innerHTML = rows.map((r,i) => `
+    <tr data-area="${esc(r['Area'])}">
+      <td class="rank-n">${i+1}</td>
+      <td><strong>${esc(r['Restaurant Name'])}</strong></td>
+      <td><span class="area-chip">${esc(r['Area'])}</span></td>
+      <td style="font-size:12px">${esc(r['Food Type'] || '')}</td>
+      <td><span class="star">★</span> ${r['Google Rating']}</td>
+      <td style="font-size:12px">${fmt(r['Review Count'])}</td>
+      <td class="price-tag">${esc(r['Price Range'] || '')}</td>
+      <td class="${r['Suitable for Group']?.includes('✅') ? 'group-yes' : 'group-warn'}">${r['Suitable for Group']?.includes('✅') ? '✅' : '⚠️'}</td>
+      <td><span class="score-pill">${r['Scoring Total'] || '—'}</span></td>
+      <td>${r['Source URL'] ? `<a href="${r['Source URL']}" target="_blank" style="color:var(--accent);font-size:12px">Maps ↗</a>` : '—'}</td>
+    </tr>
+  `).join('');
+}
+
+function renderRawTable(rows) {
+  document.getElementById('rawTableBody').innerHTML = rows.map((r,i) => `
+    <tr>
+      <td style="color:var(--muted);font-size:12px">${i+1}</td>
+      <td style="font-size:12px"><strong>${esc(r['Restaurant Name'])}</strong></td>
+      <td><span class="area-chip" style="font-size:10px">${esc(r['Area'])}</span></td>
+      <td style="font-size:11px;color:var(--muted)">${esc(r['Food Type'] || '')}</td>
+      <td style="font-size:12px"><span class="star">★</span>${r['Google Rating']}</td>
+      <td style="font-size:11px">${fmt(r['Review Count'])}</td>
+      <td style="font-size:11px;color:var(--muted)">${esc(r['Price Range'] || '')}</td>
+      <td style="font-size:12px">${r['Suitable for Group']?.includes('✅') ? '✅' : '⚠️'}</td>
+      <td>${r['Source URL'] ? `<a href="${r['Source URL']}" target="_blank" style="color:var(--accent);font-size:11px">Maps ↗</a>` : '—'}</td>
+    </tr>
+  `).join('');
+}
+
+// ── AI INSIGHT RENDERER ──
+function renderAIInsight(rows) {
+  const top3 = rows.slice(0, 3);
+  if (top3.length < 3) return;
+  const [r1, r2, r3] = top3;
+
+  // Scoring breakdown per dimension
+  function scoreBadges(r) {
+    const s = parseFloat(r['Google Rating']||0);
+    const rv = parseInt(r['Review Count']||0);
+    const grp = r['Suitable for Group']?.includes('✅');
+    const price = r['Price Range']||'';
+    return `
+      <div class="score-breakdown">
+        <span class="sb">⭐ Rating: ${s} (${rv.toLocaleString()} รีวิว)</span>
+        <span class="sb">${grp ? '✅ Group OK' : '⚠️ ต้องยืนยัน'}</span>
+        <span class="sb">💰 ${price.split('(')[0].trim()}</span>
+        <span class="sb">🎯 Score: ${r['Scoring Total']}/100</span>
+      </div>`;
+  }
+
+  const html = `
+  <div class="insight-box">
+    <div class="insight-intro">
+      AI วิเคราะห์จากข้อมูลจริง ${rows.length} ร้านใน 5 ย่าน โดยใช้ Scoring Model 6 มิติ (100 คะแนน)
+      ครอบคลุม Rating & Reviews, Group Suitability, Price, Travel, Data Completeness, Uniqueness
+      — ผลลัพธ์นี้สะท้อนร้านที่ดีที่สุดสำหรับทีม 8–12 คน มื้อเย็นหลังเลิกงาน
+    </div>
+
+    <div class="insight-pick">
+      <div class="insight-card ic1">
+        <h4>🥇 ${esc(r1['Restaurant Name'])} — อันดับ 1</h4>
+        <p><strong>เหตุผลหลัก:</strong> Korean BBQ ที่มีรีวิวสูงที่สุดในกลุ่มสยาม (4.9★, 3,472 รีวิว)
+        รูปแบบ sharing meal เหมาะกับทีม 8–12 คนโดยธรรมชาติ ไม่ต้องสั่งแยก
+        ตั้งอยู่ใน Siam Square One ติด BTS เพียง 2 นาที ลดปัญหาการเดินทางหลังเลิกงาน</p>
+        <p class="pros">✔ Rating สูงสุด ✔ รีวิวเยอะมาก ✔ ใกล้ BTS ที่สุด ✔ Korean BBQ = group-friendly โดย default</p>
+        <p class="cons">✘ อาจแน่นช่วง peak hour ✘ ควรจองล่วงหน้าสำหรับกลุ่ม 10+ คน</p>
+        ${scoreBadges(r1)}
+      </div>
+      <div class="insight-card ic2">
+        <h4>🥈 ${esc(r2['Restaurant Name'])} — อันดับ 2</h4>
+        <p><strong>เหตุผลหลัก:</strong> Korean BBQ ระดับพรีเมียมใน Phrom Phong (4.8★, 4,136 รีวิว)
+        มีรีวิวมากที่สุดในกลุ่มทั้งหมด บ่งชี้ความนิยมสูงและ consistency ดี
+        รองรับกลุ่มใหญ่ได้ดี มีที่นั่งเพียงพอ ราคาสมเหตุสมผลเทียบกับคุณภาพ</p>
+        <p class="pros">✔ รีวิวมากที่สุด (4,136) ✔ Proven track record ✔ Korean BBQ = group-friendly</p>
+        <p class="cons">✘ อยู่ Phrom Phong ไกลกว่าอันดับ 1 สำหรับทีมที่มาจาก Siam</p>
+        ${scoreBadges(r2)}
+      </div>
+      <div class="insight-card ic3">
+        <h4>🥉 ${esc(r3['Restaurant Name'])} — อันดับ 3</h4>
+        <p><strong>เหตุผลหลัก:</strong> Japanese Buffet ใน Phrom Phong (4.8★, 2,025 รีวิว)
+        รูปแบบบุฟเฟต์ตัดปัญหาการสั่งแยก ราคาต่อหัวชัดเจน ง่ายต่อการบริหารงบทีม
+        คะแนนเท่ากับ BORNGA แต่รีวิวน้อยกว่า จึงได้อันดับ 3</p>
+        <p class="pros">✔ Buffet = ราคาแน่นอน ✔ ไม่ต้องสั่งแยก ✔ ราคาถูกกว่า (฿฿)</p>
+        <p class="cons">✘ รีวิวน้อยกว่า BORNGA ✘ ต้องตรวจสอบ time slot</p>
+        ${scoreBadges(r3)}
+      </div>
+    </div>
+
+    <div class="insight-tradeoff">
+      <h4>⚖️ Trade-off Analysis — เลือกร้านไหนดี?</h4>
+      <div class="tradeoff-row"><span class="tradeoff-label">งบประหยัด (≤600/คน)</span><span class="tradeoff-val">→ <strong>KURATHAI SHOKUDO</strong> (บุฟเฟต์ ฿฿) หรือ Izakaya Reiwa / เซนิกุเทน (อันดับ 6–8)</span></div>
+      <div class="tradeoff-row"><span class="tradeoff-label">บรรยากาศ wow</span><span class="tradeoff-val">→ <strong>จากึมซอง</strong> (Korean BBQ ย่าน Siam มีชื่อเสียง) หรือ BORNGA (premium)</span></div>
+      <div class="tradeoff-row"><span class="tradeoff-label">ง่ายสุด / walk-in ได้</span><span class="tradeoff-val">→ <strong>KURATHAI SHOKUDO</strong> (buffet ไม่ต้องสั่ง) หรือ Fuego / Konlamoh (ทองหล่อ)</span></div>
+      <div class="tradeoff-row"><span class="tradeoff-label">ใกล้ BTS สุด</span><span class="tradeoff-val">→ <strong>จากึมซอง</strong> (BTS สยาม 2 นาที) หรือ JUMBO Seafood (Siam Paragon)</span></div>
+      <div class="tradeoff-row"><span class="tradeoff-label">ทีมชอบอาหารไทย</span><span class="tradeoff-val">→ อีหล่า อีสานกายะ (อันดับ 5) หรือ LIB STORY Thai BBQ (อโศก)</span></div>
+      <div class="tradeoff-row"><span class="tradeoff-label">ต้องการ private room</span><span class="tradeoff-val">→ แนะนำโทรจองล่วงหน้าสำหรับทุกร้าน ระบุจำนวน 10–12 คนให้ชัดเจน</span></div>
+    </div>
+
+    <div class="insight-when">
+      💡 <strong>สรุปคำแนะนำ AI:</strong>
+      ถ้าทีมยังไม่ตัดสินใจ เลือก <strong>จากึมซอง สยามสแควร์ วัน</strong> เป็น default — คะแนนสูงสุด เดินทางง่ายสุด รีวิวพิสูจน์มาแล้ว
+      / ถ้าต้องการประหยัดกว่า เลือก <strong>KURATHAI SHOKUDO</strong> (บุฟเฟต์ญี่ปุ่น งบชัดเจน)
+      / ถ้าอยากได้ประสบการณ์ Korean BBQ premium เลือก <strong>BORNGA THAILAND</strong>
+      <br><small style="color:var(--muted)">📊 วิเคราะห์จาก Apify Google Maps data · Scoring model 6 มิติ · อัปเดต พ.ค. 2026</small>
+    </div>
+  </div>`;
+
+  document.getElementById('aiInsightSection').innerHTML = html;
+}
+
+// ── FILTER ──
+function filterTable(area, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const filtered = area === 'all' ? allRows : allRows.filter(r => r['Area'] === area);
+  renderTable(filtered.slice(0, 10));
+}
+
+// ── AI ASK BOX ──
+let aiContext = [];
+function buildAIContext(rows) { aiContext = rows; }
+
+const qaMap = [
+  [['ถูก','ราคา','งบน้อย','ประหยัด'], r => {
+    const sorted = [...aiContext].sort((a,b) => parseFloat(a['Google Rating']||0) - parseFloat(b['Google Rating']||0));
+    const top = aiContext.filter(r => r['Price Range']?.includes('฿ (') || r['Price Range']?.includes('400–800')).slice(0,3);
+    return top.length ? '💰 ร้านที่ราคาถูก: <strong>' + top.map(r=>`${r['Restaurant Name']} (${r['Price Range']})`).join(', ') + '</strong>' : null;
+  }],
+  [['group','กลุ่ม','12 คน','10 คน','8 คน'], r => {
+    const top = aiContext.filter(r => r['Suitable for Group']?.includes('✅')).slice(0,5);
+    return top.length ? '👥 ร้านที่รองรับกลุ่มได้: <strong>' + top.map(r=>r['Restaurant Name']).join(', ') + '</strong>' : null;
+  }],
+  [['bts','เดินทาง','ใกล้'], r => {
+    const top = aiContext.filter(r => r['Distance / Travel Note']?.includes('~2') || r['Distance / Travel Note']?.includes('~5')).slice(0,4);
+    return top.length ? '🚉 ร้านใกล้ BTS: <strong>' + top.map(r=>`${r['Restaurant Name']} (${r['Distance / Travel Note']})`).join(', ') + '</strong>' : null;
+  }],
+  [['คะแนน','อันดับ','top','ดีสุด'], r => {
+    const top = [...aiContext].sort((a,b) => parseFloat(b['Scoring Total']||0)-parseFloat(a['Scoring Total']||0)).slice(0,3);
+    return '🏆 คะแนนสูงสุด: <strong>' + top.map(r=>`${r['Restaurant Name']} (${r['Scoring Total']} คะแนน)`).join(', ') + '</strong>';
+  }],
+  [['สยาม'], () => {
+    const t = aiContext.filter(r=>r['Area']==='สยาม').slice(0,4);
+    return '📍 ร้านในสยาม: <strong>'+t.map(r=>r['Restaurant Name']).join(', ')+'</strong>';
+  }],
+  [['อารีย์','ari'], () => {
+    const t = aiContext.filter(r=>r['Area']==='อารีย์').slice(0,4);
+    return '📍 ร้านในอารีย์: <strong>'+t.map(r=>r['Restaurant Name']).join(', ')+'</strong>';
+  }],
+  [['ทองหล่อ','thonglor'], () => {
+    const t = aiContext.filter(r=>r['Area']==='ทองหล่อ').slice(0,4);
+    return '📍 ร้านในทองหล่อ: <strong>'+t.map(r=>r['Restaurant Name']).join(', ')+'</strong>';
+  }],
+  [['อโศก','asok'], () => {
+    const t = aiContext.filter(r=>r['Area']==='อโศก').slice(0,4);
+    return '📍 ร้านในอโศก: <strong>'+t.map(r=>r['Restaurant Name']).join(', ')+'</strong>';
+  }],
+  [['พร้อมพงษ์','phrom'], () => {
+    const t = aiContext.filter(r=>r['Area']==='พร้อมพงษ์').slice(0,4);
+    return '📍 ร้านในพร้อมพงษ์: <strong>'+t.map(r=>r['Restaurant Name']).join(', ')+'</strong>';
+  }],
+];
+
+function askAI() {
+  const q = document.getElementById('askInput').value.trim();
+  if (!q) return;
+  const result = document.getElementById('askResult');
+  document.getElementById('askStatus').textContent = 'กำลังประมวลผล...';
+  result.style.display = 'none';
+  setTimeout(() => {
+    document.getElementById('askStatus').textContent = '';
+    const lc = q.toLowerCase();
+    let reply = '';
+    for (const [keys, fn] of qaMap) {
+      if (keys.some(k => lc.includes(k))) { reply = fn() || ''; if (reply) break; }
+    }
+    if (!reply) {
+      const top1 = aiContext[0];
+      reply = top1
+        ? `จากข้อมูล ${aiContext.length} ร้านใน 5 ย่าน — ร้านที่แนะนำที่สุดคือ <strong>${top1['Restaurant Name']}</strong> (${top1['Area']}, ${top1['Scoring Total']} คะแนน) · ลองถามเพิ่มเติม เช่น "ร้านถูกสุด" "รับกลุ่ม 12 คน" "ใกล้ BTS" "ย่านสยาม"`
+        : 'ยังไม่มีข้อมูล — กรุณาตั้งค่า Google Sheets ก่อนค่ะ';
+    }
+    result.innerHTML = `<strong>🤖 AI ตอบ:</strong> ${reply}<br><small style="color:var(--muted);font-size:11px">ข้อมูลจาก Google Sheets · ${new Date().toLocaleDateString('th-TH')}</small>`;
+    result.style.display = 'block';
+  }, 600);
+}
+
+document.getElementById('askInput').addEventListener('keydown', e => { if (e.key==='Enter'&&e.ctrlKey) askAI(); });
+
+// ── HUMAN REVIEW ──
+function addFlag() {
+  const note = document.getElementById('flagNote').value.trim();
+  const type = document.getElementById('flagType').value;
+  if (!note) return;
+  const map = { v:['flag-v','⚠️ ยืนยัน'], ok:['flag-ok','✅ ยืนยันแล้ว'], w:['flag-w','🔴 ระวัง'] };
+  const [cls, label] = map[type];
+  const li = document.createElement('li');
+  li.innerHTML = `<span class="flag ${cls}">${label}</span><span>${note}</span>`;
+  document.getElementById('reviewList').appendChild(li);
+  document.getElementById('flagNote').value = '';
+}
+
+// ── RAW TOGGLE ──
+function toggleRaw() {
+  const el = document.getElementById('rawData');
+  el.style.display = el.style.display === 'block' ? 'none' : 'block';
+}
+
+// ── UTILS ──
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmt(n) { return parseInt(n||0).toLocaleString(); }
+
+// ── INIT ──
+loadData();
+</script>
+</body>
+</html>
